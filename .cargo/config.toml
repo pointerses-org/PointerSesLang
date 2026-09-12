@@ -1,0 +1,30 @@
+# Cross-compilation via zig (a single binary that links for any target).
+# Requires the `zigcc` shim (tools/zigcc.rs, compiled to zigcc.exe) which
+# invokes `zig cc` (zig 0.17+ needs an explicit `cc` subcommand), plus zig
+# itself. Put `zig` on PATH (or set ZIG=<zig exe>) and `zigcc` on PATH, then:
+#   cargo build --release --target <triple>
+# Targets: Linux x64/x32/arm64 + Windows x64/x32/arm64 (macOS unsupported).
+
+[target.x86_64-unknown-linux-gnu]
+linker = "zigcc"
+rustflags = ["-Clink-arg=-target", "-Clink-arg=x86_64-linux-gnu"]
+
+[target.i686-unknown-linux-gnu]
+linker = "zigcc"
+rustflags = ["-Clink-arg=-target", "-Clink-arg=x86-linux-gnu"]
+
+[target.aarch64-unknown-linux-gnu]
+linker = "zigcc"
+rustflags = ["-Clink-arg=-target", "-Clink-arg=aarch64-linux-gnu"]
+
+[target.i686-pc-windows-gnu]
+linker = "zigcc"
+# Cross sysroots carry only crt2.o/dllcrt2.o; zig needs the mingw import libs
+# (libmsvcrt.a etc.) to resolve -lmsvcrt. The -L search path is emitted by
+# build.rs rather than hardcoded here: cargo does not expand ${env:VAR} inside
+# rustflags, so no portable form exists in this file.
+rustflags = ["-Clink-arg=-target", "-Clink-arg=x86-windows-gnu"]
+
+[target.aarch64-pc-windows-gnullvm]
+linker = "zigcc"
+rustflags = ["-Clink-arg=-target", "-Clink-arg=aarch64-windows-gnu"]

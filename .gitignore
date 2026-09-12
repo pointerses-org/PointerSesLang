@@ -1,0 +1,34 @@
+# Pointerses .gitignore
+#
+# 只列这个仓库实际会产生的东西，每条都对应一次真实观测或一处代码路径。
+# 没有 .vscode / .idea / Thumbs.db / *.swp 之类通用条目——全树扫描（排除
+# target/）只有 .rs .psp .s .o .so .toml .ps1 .c .md .lock .exe .pspc .dll 这几种，
+# 没有任何编辑器或操作系统遗留文件。
+
+# ── cargo 构建输出 ────────────────────────────────────────────────────────
+# 当前 1.8 GB / 2357 个文件（6 个 target triple + debug + release）。
+# 不带前导 "/"，所以同时也覆盖 examples/native_rust/target/——那个独立的
+# FFI 演示子 crate 会各自生成构建目录。scripts\make-releases.ps1 组装的
+# target\releases\ 也落在这条规则里，不入库。
+target/
+
+# ── zigcc 交叉链接 shim ───────────────────────────────────────────────────
+# tools\zigcc.exe（4.8 MB）是 tools\zigcc.rs（9.4 KB）编译出来的宿主二进制，
+# scripts\build-all.ps1 第 0 步会重新编译。入库的是 .rs，不是 .exe。
+tools/zigcc.exe
+
+# ── rustc link-test 残留 ──────────────────────────────────────────────────
+# rustc 校验 linker 时写的 tmp_linktest.rs / *.rcgu.o。cargo 进程被中途杀掉
+# 会漏在工作区根目录。
+tmp_linktest*
+
+# ── 本项目自己的打包产物 ──────────────────────────────────────────────────
+# pssc <file.psp> 的默认输出是 <file>.project（字节码包），pssl 输出 .psdl。
+# 入库对象是源码，包是产物；确需入库用 git add -f。
+*.project
+*.psdl
+
+# ── git 依赖的本地缓存 ────────────────────────────────────────────────────
+# src\project\deps.rs 的 cache_root()：PSS_CACHE 与 %USERPROFILE%\.pointerses
+# 都取不到时回退到当前目录下的 .pointerses，并在那里 clone 依赖仓库。
+.pointerses/

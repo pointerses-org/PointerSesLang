@@ -1,0 +1,242 @@
+// main.psp —— Pointerses 综合示例（单文件，直接可编译运行）
+//
+// 本文件在**一个**源文件里演示全部语言特性，无需任何 import / module 辅助文件：
+//   1) class（值类型）与属性访问
+//   2) 指针系统：取地址 & / 解引用 *
+//   3) 闭包（捕获外层自由变量）
+//   4) 集合：数组 / List / Map
+//   5) 泛型：泛型 class 与泛型 func（显式 / 推断类型实参）
+//   6) infs / with / imp：静态分派（含泛型实现）
+//   7) infs 对象 dyn 与泛型约束 T: infs（运行时动态分派）
+//   8) 错误处理：throw / try / catch / finally（含跨函数展开）
+//   9) 字符串插值：$ident 与 ${expr}
+//  10) 并发：@Auto / @Manual(fixed=N) 注解
+//  11) FFI：extern 声明（内置 add / sub / mul）
+//
+// 运行：   pss run examples/main.psp --no-daemon
+// 打包：   pssc examples/main.psp --file-exe -o main.exe
+// 工程：   pssc --project -o examples/main.project   （读取 main.pspc）
+//
+// 预期输出（节选）：
+//   1 class:  Alice (30) / older Alice (31)
+//   2 ptr:    *p = 42
+//   3 closure: add1(5) = 6
+//   4 collections: arr=[1,2,3] list=[5,7] m={a: 1}
+//   5 generics: Box[int]=42 / pick(str)=right
+//   6 static: Rex is 3 years old / Woof, I am Rex
+//   7 dyn:    Tom says meow!! / bound: Rex says woof
+//   8 errors: caught: division by zero / finally: done
+//   9 interp: n is 42, and 42 == 42
+//  10 concurrent: 3^2 + 4^2 = 25
+//  11 ffi:    add(2, 3) = 5
+
+// ---------------------------------------------------------------------------
+// 1) class（值类型）与 infs 用的接收者类型
+// ---------------------------------------------------------------------------
+
+class Person {
+  name: str
+  age: int
+}
+
+// ---------------------------------------------------------------------------
+// 2) 指针与 3) 闭包（在 main 中演示）
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// 4) 集合相关辅助函数（参数为容器，演示类型注解）
+// ---------------------------------------------------------------------------
+
+func describe_list(items: List[int]) -> str {
+  return "[" + items.len() + " items]"
+}
+
+// ---------------------------------------------------------------------------
+// 5) 泛型：class + func
+// ---------------------------------------------------------------------------
+
+class Box[T] {
+  value: T
+  tag: str
+}
+
+func pick[T](first: T, second: T, prefer_first: bool) -> T {
+  if (prefer_first) {
+    return first
+  }
+  return second
+}
+
+// ---------------------------------------------------------------------------
+// 6) infs / with / imp：静态分派（含泛型实现）
+// ---------------------------------------------------------------------------
+
+infs Describe {
+  func describe() -> str
+}
+
+class Dog {
+  name: str
+  age: int
+}
+
+imp Describe for Dog {
+  func describe() -> str {
+    return this.name + " is " + this.age + " years old"
+  }
+}
+
+with Dog {
+  func bark() -> str {
+    return "Woof, I am " + this.name
+  }
+  func older() -> Dog {
+    return Dog { name: this.name, age: this.age + 1 }
+  }
+}
+
+// 泛型实现：不同实例化共享模板方法（静态分派）。
+imp Describe for Box {
+  func describe() -> str {
+    return "Box[" + this.tag + "] = " + this.value
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7) infs 对象 dyn 与泛型约束 T: infs（运行时动态分派）
+// ---------------------------------------------------------------------------
+
+class Cat {
+  name: str
+}
+
+imp Describe for Cat {
+  func describe() -> str {
+    return this.name + " says meow"
+  }
+}
+
+func describe_all[T: Describe](x: T) -> str {
+  return x.describe()
+}
+
+func loud(d: dyn Describe) -> str {
+  return d.describe() + "!!"
+}
+
+// ---------------------------------------------------------------------------
+// 8) 错误处理
+// ---------------------------------------------------------------------------
+
+func divide(a: int, b: int) -> int {
+  if (b == 0) {
+    throw "division by zero"
+  }
+  return a / b
+}
+
+func inner(x: int) -> int {
+  if (x < 0) {
+    throw "negative not allowed"
+  }
+  return x * 2
+}
+
+// 更深一层调用：验证异常跨函数展开到 main 的 catch。
+func wrap(x: int) -> int {
+  return inner(x)
+}
+
+// ---------------------------------------------------------------------------
+// 10) 并发注解
+// ---------------------------------------------------------------------------
+
+@Auto
+func parallel_task(n: int) -> int {
+  return n * n
+}
+
+@Manual(fixed=2)
+func pool_task(i: int) -> int {
+  return i + 10
+}
+
+// ---------------------------------------------------------------------------
+// 11) FFI：外部函数声明（内置 add / sub / mul）
+// ---------------------------------------------------------------------------
+
+extern func add(a: int, b: int) -> int
+
+// ---------------------------------------------------------------------------
+// main
+// ---------------------------------------------------------------------------
+
+func main() -> int {
+  // 1) class 与属性访问（含固有实现静态分派）。
+  var p = Person { name: "Alice", age: 30 }
+  say("1 class:  " + p.name + " (" + p.age + ")")
+
+  // 2) 指针：取地址 & 与显式解引用 *。
+  var n = 42
+  var ptr = &n
+  say("2 ptr:    *p = " + (*ptr))
+
+  // 3) 闭包：捕获外层作用域变量。
+  var add1 = |v: int| -> int { return v + 1 }
+  say("3 closure: add1(5) = " + add1(5))
+
+  // 4) 集合：数组 / List / Map。
+  var arr = [1, 2, 3]
+  arr[1] = 99
+  var list: List[int] = []
+  list.push(5)
+  list.push(7)
+  var m: Map[String, int] = Map[String, int] { "a": 1 }
+  m.set("b", 2)
+  say("4 collections: arr=" + arr + " " + describe_list(list) + " m=" + m)
+  say("   m[\"a\"]=" + m["a"] + " has(x)=" + m.has("x") + " keys=" + m.keys())
+
+  // 5) 泛型：class 实例化 + func（显式 / 推断）。
+  var ib = Box[int] { value: 42, tag: "int" }
+  var sb = Box[str] { value: "hi", tag: "str" }
+  say("5 generics: " + ib.value + " / " + sb.value + " / pick=" + pick[int](1, 2, true) + " / " + pick("left", "right", false))
+
+  // 6) infs / with 静态分派。
+  var d = Dog { name: "Rex", age: 3 }
+  say("6 static: " + d.describe() + " / " + d.bark())
+  say("   older: " + d.older().describe())
+  say("   generic impl: " + ib.describe())
+
+  // 7) dyn infs 对象与泛型约束（动态分派）。
+  var c = Cat { name: "Tom" }
+  say("7 dyn:    " + loud(c) + " / bound: " + describe_all(d))
+
+  // 8) 错误处理：throw / try / catch / finally + 跨函数展开。
+  try {
+    var r = divide(10, 0)
+    say("   unreachable: " + r)
+  } catch (e) {
+    say("8 errors: caught: " + e)
+  } finally {
+    say("   finally: done")
+  }
+  try {
+    var x = wrap(-1)
+    say("   unreachable, x = " + x)
+  } catch (e) {
+    say("   unwound: " + e)
+  }
+
+  // 9) 字符串插值。
+  var k = 42
+  say("9 interp: n is $k, and ${10 + 32} == $k")
+
+  // 10) 并发：@Auto / @Manual(fixed=N)。
+  var total = parallel_task(3) + pool_task(5) + pool_task(2)
+  say("10 concurrent: 3^2 + (5+10) + (2+10) = " + total)
+
+  // 11) FFI：调用内置外部函数。
+  say("11 ffi:    add(2, 3) = " + add(2, 3))
+
+  return 0
+}

@@ -1,0 +1,53 @@
+// cb_test.psp —— GUI 回调测试：键盘 + 鼠标 + 顶层全局变量在 VM 与回调间共享
+//
+// 运行：pss run examples/cb_test.psp --no-daemon
+//   按键、点击窗口均可触发回调；Alt+F4 退出。
+
+var win_id = 0
+var key_count = 0
+var click_count = 0
+var last_key = ""
+var last_x = 0
+var last_y = 0
+
+// 整幅重绘：把计数与最近一次事件画到窗口上
+func redraw() -> int {
+  clear_canvas(win_id)
+  fill_rect(win_id, 0, 0, 360, 260, rgb(246, 246, 250))
+  draw_rect(win_id, 8, 8, 344, 244, rgb(160, 160, 180))
+  draw_text(win_id, 18, 18, "Pointerses GUI callbacks")
+  draw_text(win_id, 18, 60, "keys=" + key_count + "  clicks=" + click_count)
+  draw_text(win_id, 18, 92, "last key: " + last_key)
+  draw_text(win_id, 18, 124, "last click: " + last_x + "," + last_y)
+  draw_text(win_id, 18, 190, "Alt+F4 to exit")
+  return 0
+}
+
+func keyed(k: str) -> int {
+  key_count = key_count + 1
+  last_key = k
+  say("KEY #" + key_count + ": [" + k + "]")
+  redraw()
+  return 0
+}
+
+func clicked(x: int, y: int) -> int {
+  click_count = click_count + 1
+  last_x = x
+  last_y = y
+  say("CLICK #" + click_count + " @ " + x + "," + y)
+  redraw()
+  return 0
+}
+
+func main() -> int {
+  win_id = window("CB Test", 360, 260)
+  key_count = 0
+  click_count = 0
+  redraw()
+  on_key(win_id, keyed)
+  on_click(win_id, clicked)
+  event_loop()
+  say("done: keys=" + key_count + " clicks=" + click_count)
+  return 0
+}

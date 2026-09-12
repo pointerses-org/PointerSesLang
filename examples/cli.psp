@@ -1,0 +1,57 @@
+// cli.psp —— CLI 交互示例（命令行参数 + 终端交互输入 + 格式化输出）
+//
+// 语言内建 CLI 能力（无需宿主 Rust / no-api-check）：
+//   args()              命令行参数数组（不含程序名）-> List[str]
+//   ask(prompt)         在终端打印提示并读取一行输入 -> str
+//   readLine()          直接读取一行输入（无提示）-> str
+//   printf(fmt, ...)    格式化输出（%d / %s / %f / %x / 宽度 / 对齐）
+//   fmt(fmt, ...)       格式化生成字符串 -> str
+//   str.to_int()        字符串 → 整数
+//   str.to_float()      字符串 → 浮点数
+//
+// 运行：   pss run examples/cli.psp --no-daemon 张三 25
+// 打包：   pssc examples/cli.psp -o cli.project
+//          pss cli.project 张三 25
+//
+// 预期交互：
+//   收到 2 个参数
+//     参数[0] = 张三
+//     参数[1] = 25
+//   请输入你的名字: （等待输入）
+//   你好, <输入的名字>!
+//   年龄换算: 你输入了 25 岁, 5 年后 30 岁
+
+func main() -> int {
+  // 1) 命令行参数
+  var all = args()
+  say("收到 " + all.len() + " 个参数")
+  var i = 0
+  while (i < all.len()) {
+    printf("  参数[%d] = %s\n", i, all[i])
+    i = i + 1
+  }
+
+  // 2) 交互输入：带提示读取一行
+  var name = ask("请输入你的名字: ")
+  if (name == "") {
+    name = "无名氏"
+  }
+  say("你好, " + name + "!")
+
+  // 3) 参数转数值 + 格式化输出
+  if (all.len() > 1) {
+    var age = all[1].to_int()
+    printf("年龄换算: 你输入了 %d 岁, 5 年后 %d 岁\n", age, age + 5)
+  } else {
+    var msg = fmt("%-10s|%6.2f|%x", "默认", 3.14159, 255)
+    say(msg)
+  }
+
+  // 4) 无提示读一行（例如管道输入）
+  var line = readLine()
+  if (line != "") {
+    say("你管道输入了: " + line)
+  }
+
+  return 0
+}

@@ -1,0 +1,22 @@
+// gui_smoke.psp —— GUI 生命周期冒烟测试
+// 验证：窗口创建、画布录制与重绘、标题修改、关闭、事件循环退出
+func main() -> int {
+  var win = window("GUI Smoke", 320, 240)
+  say("window id=" + win)
+
+  var bg = rgb(30, 30, 40)
+  var accent = rgb(0, 200, 120)
+
+  clear_canvas(win)
+  fill_rect(win, 0, 0, 320, 240, bg)
+  fill_rect(win, 20, 20, 120, 80, accent)
+  draw_rect(win, 150, 20, 140, 80, rgb(255, 255, 255))
+  draw_text(win, 30, 35, "Hello Pointerses")
+  draw_text(win, 160, 45, "draw_rect")
+  window_title(win, "GUI Smoke - redrawn")
+
+  window_close(win)
+  event_loop()
+  say("event_loop returned")
+  return 0
+}

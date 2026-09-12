@@ -1,0 +1,54 @@
+[package]
+name = "pointerses"
+version = "0.1.0"
+edition = "2021"
+description = "Pointerses: an algebraic-path pointer language with region calculus and a native compiler."
+license = "MIT"
+
+[lib]
+name = "pointerses"
+path = "src/lib.rs"
+# Produces both `rlib` (Rust embedding) and `cdylib` (DLL / .so, e.g. driven by
+# other languages). The Windows-GNU `.def` export list is rewritten by the
+# `zigcc` shim, so DLL cross-builds work on all supported targets.
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "pss"
+path = "src/bin/pss.rs"
+
+[[bin]]
+name = "pssc"
+path = "src/bin/pssc.rs"
+
+[[bin]]
+name = "pssp"
+path = "src/bin/pssp.rs"
+
+[[bin]]
+name = "pssl"
+path = "src/bin/pssl.rs"
+
+# Pointerses is intentionally std-only by default so that `cargo build` succeeds
+# fully offline (no LLVM / no network required). Code generation is provided by
+# two backends:
+#
+#   * `native`  (default) - a real bytecode VM backend. `pss run` interprets the
+#     compiled bytecode in-process; `pss build` embeds the bytecode into a small
+#     self-contained Rust driver and links it with `rustc` to produce a native
+#     `.exe` with no external runtime or C/LLVM toolchain.
+#
+#   * `llvm`     (opt-in) - a pure-Rust LLVM IR text emitter. It produces valid
+#     LLVM IR (`.ll`) for the compiled program, keeping the bootstrap backend
+#     firmly on LLVM without requiring LLVM to be installed. A real `inkwell`
+#     binding may be enabled by adding the `inkwell` dependency under this
+#     feature; it is intentionally not a default dependency so the default
+#     build never requires network access or an LLVM installation.
+[features]
+default = ["native"]
+native = []
+llvm = []
+
+[profile.release]
+opt-level = 3
+lto = true

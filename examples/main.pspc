@@ -1,0 +1,36 @@
+# main.pspc —— Pointerses 单项目配置文件（与 main.psp 同名同目录）
+#
+# 工具链对每个 .psp 源文件自动加载同 basename 的 .pspc（例如 `pss run
+# examples/main.psp` 与 `pssc examples/main.psp --file-exe` 都会读取本文件）。
+# 字段为 YAML 子集：
+#   name          工程名
+#   version       版本号
+#   dependencies  git 依赖映射：name: spec（见 docs.md「工程配置」）
+#   no-api-check  构建 .project 时跳过"调用是否存在"检查
+#   watchdog      watchdog 自动重启块（不配置则不启用）
+
+name: main
+version: 0.1.0
+
+# no-api-check 示例（取消注释即启用；等价于 `pssc --no-api-check`）：
+# 构建 .project（字节码包）时跳过构建期的存在性检查，允许调用既未定义、也未
+# extern 声明的函数——它们由宿主 Rust 程序在运行时经 PSS_RUST_LIB 提供
+# （见 docs.md「FFI · 宿主 API 与 no-api-check」）。仅对 .project 打包有效：
+# 与 --file-exe / --file-x 一起使用会被拒绝。
+# no-api-check: true
+
+# git 依赖示例（取消注释即启用；spec 格式：
+#   name: git+https://host/repo.git#ref   —— 或
+#   name: git+file:///path/to/repo.git#ref
+# 解析时自动 clone 到本地缓存并递归合并其模块/声明）：
+# dependencies:
+#   utils: git+https://example.com/repo/utils.git#v1.0.0
+
+# watchdog 自动重启示例（取消注释即启用）：
+# watchdog:
+#   auto_restart: true        # 启用自动拉起（宿主把程序作为子进程运行）
+#   max_auto_restarts: 3      # 最大重启次数
+#   auto_restarts_sleep_time: 20  # 重启间隔（秒）
+#
+# 未配置 watchdog 块则完全不启用；auto_restart: false 只运行一次。
+# 详见 docs.md「watchdog（进程级自动重启）」。

@@ -1,0 +1,56 @@
+// gui.psp —— 图形界面（GUI）示例：原生窗口 + 绘图 + 事件
+//
+// 语言内建 GUI 能力（Windows 走 Win32、Linux 走 X11，纯 std + 系统 API，
+// 无需宿主 Rust / 无需外部图形库）：
+//   window(title, w, h)         创建窗口 -> int（窗口句柄 id）
+//   window_close(id)            关闭窗口
+//   window_title(id, title)     改窗口标题
+//   draw_text(id, x, y, text)   在 (x,y) 画文本
+//   draw_rect(id, x, y, w, h, c)画空心矩形
+//   fill_rect(id, x, y, w, h, c)画实心矩形
+//   clear_canvas(id)            清空画布
+//   on_key(id, func(k))         注册按键回调
+//   on_click(id, func(x, y))    注册鼠标点击回调
+//   event_loop()                进入事件循环（阻塞，直到所有窗口关闭）
+//   rgb(r, g, b)                构造颜色值 -> int（0xRRGGBB）
+//
+// 运行：   pss run examples/gui.psp --no-daemon
+// 打包：   pssc examples/gui.psp -o gui.project && pss gui.project
+//
+// 界面：一个 480x360 窗口，点击/按键画方块，关闭窗口即退出。
+
+var ball_x = 100
+var ball_y = 80
+var ball_size = 40
+var ball_color = rgb(220, 50, 50)
+var win = 0
+
+func draw_all() {
+  clear_canvas(win)
+  fill_rect(win, ball_x, ball_y, ball_size, ball_size, ball_color)
+  draw_text(win, 8, 8, "点击移动方块, 空格变色, 关闭退出")
+  draw_text(win, 8, 24, "x=" + ball_x + " y=" + ball_y)
+}
+
+func on_clicked(x: int, y: int) {
+  ball_x = x - ball_size / 2
+  ball_y = y - ball_size / 2
+  draw_all()
+}
+
+func on_keyed(k: str) {
+  if k == "space" {
+    ball_color = rgb(50, 200, 100)
+  }
+  draw_all()
+}
+
+func main() -> int {
+  win = window("PointerSes GUI", 480, 360)
+  on_click(win, on_clicked)
+  on_key(win, on_keyed)
+  draw_all()
+  event_loop()          // 阻塞直到窗口关闭
+  say("GUI 示例结束")
+  return 0
+}
