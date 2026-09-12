@@ -32,3 +32,8 @@ tmp_linktest*
 # src\project\deps.rs 的 cache_root()：PSS_CACHE 与 %USERPROFILE%\.pointerses
 # 都取不到时回退到当前目录下的 .pointerses，并在那里 clone 依赖仓库。
 .pointerses/
+
+# ── 发布 zip（make-releases.ps1 产物）────────────────────────────────────
+# scripts\make-releases.ps1 把 target\releases\ 打包成 pointerses-*.zip，
+# 输出到项目根 releases\。入库对象是源码与脚本，zip 是产物。
+releases/

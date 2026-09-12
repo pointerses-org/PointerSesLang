@@ -1,10 +1,18 @@
-# make-releases.ps1 —— assemble per-target release folders under target\releases\
+# make-releases.ps1 -- stage per-target release folders, then package into zips.
 #
 # Called by scripts\build-all.ps1 after all 6 targets have been cross-built.
-# For each target it lays out three publishable packages:
+#
+# Phase 1 (staging): lay out, under target\releases\, three publishable packages
+# per target:
 #   PointerSes-<ver>-<os>_<arch>-all   four tools + LLVM-C.dll (llvm backend runtime)
 #   PointerSes-<ver>-<os>_<arch>-bin   four tools only
 #   PointerSes-<ver>-<os>_<arch>-dev   tools + LLVM-C.dll + cdylib + rlib (embedding)
+# plus shared docs/ and examples/ folders.
+#
+# Phase 2 (packaging): under <root>\releases\ (created if missing) produce:
+#   pointerses-<ver>-allreleases.zip         everything in target\releases at the zip root
+#   pointerses-<ver>-<os>_<arch>-<level>.zip one per staged target folder: that folder
+#                                          (kept intact) + docs/ + examples/ at the zip root
 #
 #   pwsh -File scripts\make-releases.ps1        (or powershell.exe)
 
@@ -22,6 +30,9 @@ $targets = @(
     @{ triple = 'aarch64-pc-windows-gnullvm';    os = 'win';   arch = 'arm64' }
 )
 
+# ===========================================================================
+# Phase 1 - stage the per-target folders under target\releases\
+# ===========================================================================
 $built = 0
 foreach ($t in $targets) {
     $rel = Join-Path $root ("target\{0}\release" -f $t.triple)
@@ -109,4 +120,63 @@ foreach ($doc in @('README.md', 'docs.md', 'LICENSE')) {
 }
 Write-Host ("  docs/ staged under {0}" -f $dDocs)
 
-Write-Host ("releases assembled under {0} ({1} target(s) x all/bin/dev)" -f $out, $built)
+Write-Host ("staged under {0} ({1} target(s) x all/bin/dev)" -f $out, $built)
+
+# ===========================================================================
+# Phase 2 - package the staged tree into zips under <root>\releases\
+# ===========================================================================
+$zipsOut = Join-Path $root 'releases'
+if (-not (Test-Path $zipsOut)) { New-Item -ItemType Directory -Force -Path $zipsOut | Out-Null }
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+# Add every file under $srcDir to $archive at "<prefix>/<rel>", where <rel> is
+# the path relative to $srcDir. Files are referenced in place (no copy), so the
+# 67 MB LLVM-C.dll in the Windows -all/-dev folders is not duplicated to disk.
+function Add-DirToArchive($archive, $srcDir, $prefix) {
+    if (-not (Test-Path $srcDir)) { return }
+    $base = (Get-Item $srcDir).FullName.TrimEnd('\')
+    Get-ChildItem $base -Recurse -File -Force -ErrorAction SilentlyContinue | ForEach-Object {
+        $rel = $_.FullName.Substring($base.Length + 1).Replace('\', '/')
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $_.FullName, "$prefix/$rel") | Out-Null
+    }
+}
+
+# (1) one bundle with everything (contents of target\releases at the zip root).
+#     Built with the same manual entry walk as the per-target zips so entry
+#     paths use '/' (portable); .NET Framework's CreateFromDirectory would emit
+#     '\' separators, which break extraction on Linux.
+$allZip = Join-Path $zipsOut ("pointerses-{0}-allreleases.zip" -f $version)
+if (Test-Path $allZip) { Remove-Item $allZip -Force }
+$archive = [System.IO.Compression.ZipFile]::Open($allZip, [System.IO.Compression.ZipArchiveMode]::Create)
+try {
+    Get-ChildItem $out -Directory | ForEach-Object { Add-DirToArchive $archive $_.FullName $_.Name }
+} finally {
+    $archive.Dispose()
+}
+Write-Host ("  {0}" -f (Split-Path $allZip -Leaf))
+
+# (2) one zip per staged target folder: the folder kept intact + docs + examples
+#     at the zip root. Zip name = folder name lowercased + .zip
+#     (PointerSes-0.1-beta-linux_arm64-dev -> pointerses-0.1-beta-linux_arm64-dev.zip).
+$docsSrc  = Join-Path $out 'docs'
+$exampSrc = Join-Path $out 'examples'
+$perTarget = 0
+Get-ChildItem $out -Directory | Where-Object { $_.Name -ne 'docs' -and $_.Name -ne 'examples' } | ForEach-Object {
+    $folder  = $_.Name
+    $zipName = $folder.ToLower() + '.zip'
+    $zipPath = Join-Path $zipsOut $zipName
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+    $archive = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        Add-DirToArchive $archive $_.FullName $folder
+        Add-DirToArchive $archive $docsSrc  'docs'
+        Add-DirToArchive $archive $exampSrc 'examples'
+    } finally {
+        $archive.Dispose()
+    }
+    $perTarget++
+    Write-Host ("  {0}" -f $zipName)
+}
+
+Write-Host ("release zips: 1 allreleases + {0} per-target, under {1}" -f $perTarget, $zipsOut)
